@@ -34,7 +34,7 @@ using std::min;
 
 namespace {
 
-const wchar_t* const kAppName = L"Win7/10/11自动更新关闭工具v3.2";
+const wchar_t* const kAppName = L"Win7/10/11自动更新关闭工具v3.3";
 const wchar_t* const kMutexName = L"Global\\UpdateLock.SingleInstance.7A64EA9A";
 const wchar_t* const kWindowsUpdate = L"SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate";
 const wchar_t* const kAutomaticUpdates = L"SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU";
@@ -666,6 +666,70 @@ public:
     }
 };
 
+enum class Windows11VersionSource { DisplayVersion, BuildMapping };
+
+struct Windows11VersionInfo {
+    bool isWindows11 = false;
+    bool known = false;
+    DWORD build = 0;
+    DWORD revision = 0;
+    std::wstring functionalVersion;
+    Windows11VersionSource source = Windows11VersionSource::BuildMapping;
+    std::wstring error;
+};
+
+struct Windows11BuildMapping {
+    DWORD firstBuild;
+    DWORD lastBuild;
+    const wchar_t* functionalVersion;
+};
+
+const std::array<Windows11BuildMapping, 6> kWindows11BuildMappings = {{
+    {22000, 22620, L"21H2"}, {22621, 22630, L"22H2"},
+    {22631, 26099, L"23H2"}, {26100, 26199, L"24H2"},
+    {26200, 26299, L"25H2"}, {26300, 26399, L"26H2"}
+}};
+
+const Windows11BuildMapping* FindWindows11BuildMapping(DWORD build) {
+    for (const Windows11BuildMapping& mapping : kWindows11BuildMappings) {
+        if (build >= mapping.firstBuild && build <= mapping.lastBuild) return &mapping;
+    }
+    return nullptr;
+}
+
+class Windows11VersionDetector {
+public:
+    static Windows11VersionInfo Resolve(const VersionInfo& version,
+        const std::wstring& displayVersion, DWORD revision) {
+        Windows11VersionInfo result;
+        result.isWindows11 = IsWindows11Desktop(version);
+        result.build = version.build;
+        result.revision = revision;
+        if (!result.isWindows11) return result;
+
+        const Windows11BuildMapping* mapping = FindWindows11BuildMapping(version.build);
+        if (IsDisplayVersionFormat(displayVersion) &&
+            (!mapping || displayVersion == mapping->functionalVersion)) {
+            result.known = true;
+            result.functionalVersion = displayVersion;
+            result.source = Windows11VersionSource::DisplayVersion;
+        } else if (mapping) {
+            result.known = true;
+            result.functionalVersion = mapping->functionalVersion;
+            result.source = Windows11VersionSource::BuildMapping;
+        } else {
+            result.error = L"已确认当前系统为 Windows 11，但当前 Build 无法映射到已知功能版本。\r\nBuild：" +
+                std::to_wstring(version.build);
+        }
+        return result;
+    }
+
+    static Windows11VersionInfo Detect(const VersionInfo& version) {
+        return Resolve(version, ReadOptionalRegistryString(L"DisplayVersion"),
+            ReadOptionalRegistryDword(L"UBR"));
+    }
+};
+
 class IUpdateController {
 public:
     virtual ~IUpdateController() = default;
@@ -692,7 +756,7 @@ public:
         if (!supportsNotificationPolicy_) {
             return L"关闭 Windows Server 自动更新、更新自动重启和 Windows Update 驱动更新，并禁止手动下载或安装更新。";
         }
-        return L"关闭 Windows 自动更新、更新通知、更新自动重启和 Windows Update 驱动更新，并禁止通过 Windows Update 手动下载或安装更新。";
+        return L"关闭 Windows 自动更新、更新通知、更新自动重启和 Windows Update 驱动更新，并禁止通过 Windows Update 手动下载或安装更新。Windows Update 服务保持系统管理状态。";
     }
     std::wstring Warning() const override {
         return L"注意：关闭后 Windows 不会按正常自动更新流程获取系统安全补丁和 Windows Update 驱动更新。\r\n"
@@ -743,8 +807,8 @@ public:
         } else if ((!notificationsApplicable || notificationsBlocked) &&
                    noRestart && driverBlocked && accessBlocked) {
             level = StatusLevel::Disabled;
-            title = L"√ Windows 更新已完全关闭";
-            summary = L"Windows Update 手动检查、下载和安装：已禁用";
+            title = L"√ Windows 更新策略已完全关闭";
+            summary = L"Windows Update 手动检查、下载和安装：已禁用；Windows Update 服务仍由系统管理。";
         } else {
             level = StatusLevel::PartiallyDisabled;
             title = L"× Windows 自动更新已关闭，但部分封锁策略未生效";
@@ -793,7 +857,7 @@ public:
                 throw AppError(L"自动更新、附加策略或 Windows Update 访问封锁写入后回读未全部达到目标状态。" );
             }
             return {OperationOutcome::Success,
-                L"Windows 更新已完全关闭。\r\n\r\n"
+                L"Windows 更新策略已完全关闭。\r\n\r\n"
                 L"Windows Update 的手动检查、下载和安装入口已禁用。"};
         } catch (const AppError& error) {
             return DisableFailure(before, accessBefore, error.message);
@@ -1678,7 +1742,7 @@ StatusVisual UpgradeVisual(const UiContext& ui) {
 
 std::wstring UpdateHeaderState(const UiContext& ui) {
     if (ui.updateReadFailed) return L"读取失败";
-    if (ui.updateState.level == StatusLevel::Disabled) return L"已完全关闭";
+    if (ui.updateState.level == StatusLevel::Disabled) return L"策略已完全关闭";
     if (ui.updateState.level == StatusLevel::PartiallyDisabled) return L"部分关闭";
     return L"未关闭";
 }
@@ -1796,6 +1860,18 @@ SystemDisplayInfo BuildSystemDisplayInfo(const VersionInfo& version,
             if (detected.known) {
                 result.feature = detected.functionalVersion;
                 if (detected.source == Windows10VersionSource::BuildMapping) result.feature += L"（Build 识别）";
+            } else {
+                result.feature = L"无法识别";
+            }
+        } catch (const AppError&) {
+            result.feature = L"无法识别";
+        }
+    } else if (IsWindows11Desktop(version)) {
+        try {
+            const Windows11VersionInfo detected = Windows11VersionDetector::Detect(version);
+            if (detected.known) {
+                result.feature = detected.functionalVersion;
+                if (detected.source == Windows11VersionSource::BuildMapping) result.feature += L"（Build 识别）";
             } else {
                 result.feature = L"无法识别";
             }

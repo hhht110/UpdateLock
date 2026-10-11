@@ -1,4 +1,4 @@
-# Win7/10/11自动更新关闭工具v3.2
+# Win7/10/11自动更新关闭工具v3.3
 
 一个原生 C++/Win32 单文件工具，自动识别 Windows 7、Windows 10、Windows 11 或 Windows Server 2016，并使用对应策略关闭 Windows Update。
 
@@ -82,6 +82,8 @@ Windows 10 界面另外提供“禁止升级到 Windows 11”和“恢复允许�
 
 Windows 7、Windows 11 和 Windows Server 2016 上该组按钮不可用，底层调用也会拒绝写入。该功能不会禁用更新服务、修改 TPM/Secure Boot 或删除系统文件，也不会把旧版 Windows 10 自动升级到 22H2。
 
+Windows 11 功能版本显示支持 24H2、25H2 和 26H2；当注册表 `DisplayVersion` 不可用时，会按真实 Build 识别，26H2 对应 Build 26300 系列。
+
 ## 重要影响
 
 关闭 Windows Update 驱动更新后，新接入的 USB 或其他硬件可能无法自动在线获取驱动。此时可从硬件厂商官网下载并离线安装驱动，或先恢复更新、安装驱动后再重新关闭。
@@ -98,13 +100,13 @@ build-native.cmd
 
 构建输出位于 `native\build`。脚本同时生成 `UpdateLock.exe` 和只使用临时目录的原生测试程序。
 
-发布包只分发一个文件：`Win7-10-11自动更新关闭工具v3.2.exe`。`NativeTests.exe`、目标文件和资源文件均不放入发布包。
+发布包只分发一个文件：`Win7-10-11自动更新关闭工具v3.3.exe`。`NativeTests.exe`、目标文件和资源文件均不放入发布包。
 
 ## 下载与校验
 
 普通用户请从 GitHub Releases 下载单文件 EXE，并使用 Release 中公布的 SHA-256 校验文件完整性。
 
-当前 v3.2 EXE 的作者元数据为“啊常用户”，但尚未使用受信任的 Authenticode 证书签名，因此 Windows 仍可能提示“未知发布者”或显示 SmartScreen 警告。加壳或混淆不会建立发布者信誉，反而可能提高安全软件的启发式风险；正式分发应使用一致的受信任 Authenticode 证书签名，并对明确误报逐版本提交厂商复核。
+当前 v3.3 EXE 的作者元数据为“啊常用户”，但尚未使用受信任的 Authenticode 证书签名，因此 Windows 仍可能提示“未知发布者”或显示 SmartScreen 警告。加壳或混淆不会建立发布者信誉，反而可能提高安全软件的启发式风险；正式分发应使用一致的受信任 Authenticode 证书签名，并对明确误报逐版本提交厂商复核。
 
 ## 验证边界
 

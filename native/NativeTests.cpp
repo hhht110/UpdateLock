@@ -152,6 +152,18 @@ int wmain() {
             server2016, L"1607", L"1607", 1);
         Require(IsWindowsServer2016(server2016) && !serverVersion.isWindows10,
             L"Windows Server 2016 与 Windows 10 桌面版本未正确隔离。" );
+
+        const Windows11VersionInfo win11_26h2 = Windows11VersionDetector::Resolve(
+            VersionInfo{10, 0, 26300, VER_NT_WORKSTATION}, L"26H2", 9550);
+        Require(win11_26h2.isWindows11 && win11_26h2.known &&
+            win11_26h2.functionalVersion == L"26H2" &&
+            win11_26h2.source == Windows11VersionSource::DisplayVersion,
+            L"Windows 11 26H2 DisplayVersion 识别错误。" );
+        const Windows11VersionInfo win11_26h2Mapped = Windows11VersionDetector::Resolve(
+            VersionInfo{10, 0, 26340, VER_NT_WORKSTATION}, L"", 9616);
+        Require(win11_26h2Mapped.known && win11_26h2Mapped.functionalVersion == L"26H2" &&
+            win11_26h2Mapped.source == Windows11VersionSource::BuildMapping,
+            L"Windows 11 26H2 Build 兜底识别错误。" );
         std::unique_ptr<IUpdateController> serverController = CreateController(server2016);
         Require(serverController->DisplayName() == L"Windows Server 2016",
             L"Windows Server 2016 Controller 路由错误。" );
@@ -178,7 +190,7 @@ int wmain() {
         const UpdateStatus partial = ModernUpdateController::BuildStatus(true, true, true, true, false);
         const UpdateStatus coreFailed = ModernUpdateController::BuildStatus(false, true, true, true, true);
         const UpdateStatus serverAll = ModernUpdateController::BuildStatus(true, false, true, true, true, false);
-        Require(all.level == StatusLevel::Disabled && all.title == L"√ Windows 更新已完全关闭" &&
+        Require(all.level == StatusLevel::Disabled && all.title == L"√ Windows 更新策略已完全关闭" &&
             all.details[0].find(L"√ 自动更新") == 0, L"现代完整状态语义错误。" );
         Require(partial.level == StatusLevel::PartiallyDisabled &&
             partial.title == L"× Windows 自动更新已关闭，但部分封锁策略未生效" &&
@@ -193,7 +205,7 @@ int wmain() {
         UiContext presentation;
         presentation.version = win10_22h2;
         presentation.updateState = all;
-        Require(UpdateHeaderState(presentation) == L"已完全关闭" &&
+        Require(UpdateHeaderState(presentation) == L"策略已完全关闭" &&
             UpdateVisual(presentation) == StatusVisual::Success,
             L"完整关闭状态的 UI 映射错误。" );
         const std::vector<StatusRow> allRows = BuildUpdateRows(presentation.updateState);

@@ -5,8 +5,8 @@ IDI_APP_ICON ICON "..\\assets\\UpdateLock.ico"
 IDR_MANIFEST RT_MANIFEST "UpdateLock.manifest"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,2,0,0
- PRODUCTVERSION 3,2,0,0
+ FILEVERSION 3,3,0,0
+ PRODUCTVERSION 3,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -22,13 +22,13 @@ BEGIN
         BLOCK "080404B0"
         BEGIN
             VALUE "CompanyName", "啊常用户\0"
-            VALUE "FileDescription", "Win7/10/11自动更新关闭工具v3.2\0"
-            VALUE "FileVersion", "3.2.0.0\0"
-            VALUE "InternalName", "Win7-10-11自动更新关闭工具v3.2.exe\0"
+            VALUE "FileDescription", "Win7/10/11自动更新关闭工具v3.3\0"
+            VALUE "FileVersion", "3.3.0.0\0"
+            VALUE "InternalName", "Win7-10-11自动更新关闭工具v3.3.exe\0"
             VALUE "LegalCopyright", "Copyright © 啊常用户\0"
-            VALUE "OriginalFilename", "Win7-10-11自动更新关闭工具v3.2.exe\0"
-            VALUE "ProductName", "Win7/10/11自动更新关闭工具v3.2\0"
-            VALUE "ProductVersion", "3.2.0.0\0"
+            VALUE "OriginalFilename", "Win7-10-11自动更新关闭工具v3.3.exe\0"
+            VALUE "ProductName", "Win7/10/11自动更新关闭工具v3.3\0"
+            VALUE "ProductVersion", "3.3.0.0\0"
         END
     END
     BLOCK "VarFileInfo"
